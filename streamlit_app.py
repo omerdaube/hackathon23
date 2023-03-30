@@ -1,26 +1,23 @@
 import streamlit as st
 
-def toggle_checkbox(checkbox_id):
-    checkboxes[checkbox_id][1] = not checkboxes[checkbox_id][1]
+# Define a function to read the uploaded file and display checkboxes for each line
+def process_file(uploaded_file):
+    if uploaded_file is not None:
+        # Read the contents of the file as a string
+        contents = uploaded_file.getvalue().decode('utf-8')
+        # Split the contents into lines
+        lines = contents.split('\n')
+        # Display a checkbox for each line
+        for line in lines:
+            st.checkbox(line)
 
-uploaded_file = st.file_uploader("Choose a file")
-if uploaded_file is not None:
-    lines = uploaded_file.read().decode("utf-8").splitlines()
+# Create the Streamlit app
+def main():
+    st.title("File Uploader and Checkbox Demo")
+    # Add a file uploader to the app
+    uploaded_file = st.file_uploader("Choose a file")
+    # Call the process_file function when the file is uploaded
+    process_file(uploaded_file)
 
-    checkboxes = {}
-    for i, line in enumerate(lines):
-        text, marked = line.strip().split(",")
-        checkboxes[i] = [text, marked == "YES"]
-
-    st.set_page_config(page_title="helo", page_icon=":clipboard:")
-    st.title("helo")
-
-    for i in range(len(checkboxes)):
-        checkbox_id = str(i)
-        text, marked = checkboxes[i]
-        if marked:
-            checkbox_state = st.checkbox(text, key=checkbox_id)
-        else:
-            checkbox_state = st.checkbox(text, value=False, key=checkbox_id)
-        if checkbox_state:
-            toggle_checkbox(i)
+if __name__ == '__main__':
+    main()
