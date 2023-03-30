@@ -12,11 +12,11 @@ def process_file(uploaded_file):
             if "," in line:
                 parts = line.split(",")
                 if len(parts) == 2 and parts[1].strip() == "YES":
-                    checkbox_value = st.checkbox(line, value=True)
+                    checkbox_value = st.checkbox(parts[0], value=True)
                 else:
-                    checkbox_value = st.checkbox(line, value=False)
+                    checkbox_value = st.checkbox(parts[0], value=False)
             else:
-                checkbox_value = st.checkbox(line, value=False)
+                checkbox_value = st.checkbox(parts[0], value=False)
 
 # Create the Streamlit app
 def main():
