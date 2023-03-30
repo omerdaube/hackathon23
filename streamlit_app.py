@@ -1,8 +1,8 @@
 import os
 import streamlit as st
-import torch
-import torchaudio
-from transformers import Wav2Vec2ForCTC, Wav2Vec2Tokenizer
+import numpy as np
+import soundfile as sf
+import requests
 
 # Define a function to read the uploaded file and display checkboxes for each line
 def process_file(uploaded_file):
@@ -22,26 +22,20 @@ def process_file(uploaded_file):
             else:
                 checkbox_value = st.checkbox(line, value=False)
 
-# Define a function to transcribe a WAV file to text using the Wav2Vec2 model
+# Define a function to transcribe a WAV file to text using the Whisper API
 def transcribe_audio(wav_file):
-    # Load the Wav2Vec2 model and tokenizer
-    model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-large-960h-lv60-self")
-    tokenizer = Wav2Vec2Tokenizer.from_pretrained("facebook/wav2vec2-large-960h-lv60-self")
-    # Read the contents of the WAV file as a tensor
-    waveform, sample_rate = torchaudio.load(wav_file)
-    # Resample the waveform if necessary
-    if sample_rate != 16000:
-        resampler = torchaudio.transforms.Resample(sample_rate, 16000)
-        waveform = resampler(waveform)
-    # Convert the waveform to a 1D tensor of floats between -1 and 1
-    waveform = waveform[0].numpy() / 32768.0
-    # Encode the waveform using the Wav2Vec2 tokenizer
-    input_values = tokenizer(waveform, return_tensors="pt").input_values
-    # Transcribe the encoded waveform using the Wav2Vec2 model
-    with torch.no_grad():
-        logits = model(input_values).logits
-    predicted_ids = torch.argmax(logits, dim=-1)
-    transcription = tokenizer.batch_decode(predicted_ids)[0]
+    # Set the API endpoint and access token
+    endpoint = "https://api.openai.com/v1/speeches/transcribe"
+    access_token = "<YOUR ACCESS TOKEN HERE>"
+    # Read the contents of the WAV file as a binary string
+    audio_data = wav_file.getvalue()
+    # Set the API headers and parameters
+    headers = {"Content-Type": "audio/wav", "Authorization": f"Bearer {access_token}"}
+    params = {"engine": "whisper"}
+    # Send a POST request to the API endpoint with the audio data and parameters
+    response = requests.post(endpoint, headers=headers, params=params, data=audio_data)
+    # Parse the API response to get the transcribed text
+    transcription = response.json()["text"]
     # Display the transcribed text in the app
     st.write(f"Transcribed text: {transcription}")
 
@@ -54,7 +48,7 @@ def main():
     process_file(uploaded_file)
     # Add a file uploader for audio files
     uploaded_wav = st.file_uploader("Choose a WAV audio file", type=["wav"])
-    # Transcribe the audio file to text using the Wav2Vec2 model when it's uploaded
+    # Transcribe the audio file to text using the Whisper API when it's uploaded
     if uploaded_wav is not None:
         transcribe_audio(uploaded_wav)
 
