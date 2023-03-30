@@ -7,9 +7,12 @@ def process_file(uploaded_file):
         contents = uploaded_file.getvalue().decode('utf-8')
         # Split the contents into lines
         lines = contents.split('\n')
-        # Display a checkbox for each line
+        # Display a checkbox for each line based on the "YES" value after the comma
         for line in lines:
-            st.checkbox(line)
+            if "," in line:
+                parts = line.split(",")
+                if len(parts) == 2 and parts[1].strip() == "YES":
+                    st.checkbox(parts[0].strip())
 
 # Create the Streamlit app
 def main():
