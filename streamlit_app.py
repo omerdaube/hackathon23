@@ -1,6 +1,8 @@
 import os
 import streamlit as st
-from google.cloud import speech_v1p1beta1 as speech
+import torch
+import torchaudio
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Tokenizer
 
 # Define a function to read the uploaded file and display checkboxes for each line
 def process_file(uploaded_file):
@@ -20,26 +22,28 @@ def process_file(uploaded_file):
             else:
                 checkbox_value = st.checkbox(line, value=False)
 
-# Define a function to transcribe a WAV file to text using the Google Cloud Speech-to-Text API
+# Define a function to transcribe a WAV file to text using the Wav2Vec2 model
 def transcribe_audio(wav_file):
-    # Create a client object for the Speech-to-Text API
-    client = speech.SpeechClient()
-    # Read the contents of the WAV file as bytes
-    audio_content = wav_file.read()
-    # Configure the recognition settings for the Speech-to-Text API
-    config = speech.RecognitionConfig(
-        encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-        sample_rate_hertz=16000,
-        language_code="en-US",
-    )
-    # Create a recognition audio object from the WAV file contents
-    audio = speech.RecognitionAudio(content=audio_content)
-    # Call the Speech-to-Text API to transcribe the audio
-    response = client.recognize(request={"config": config, "audio": audio})
-    # Extract the transcribed text from the response
-    transcript = response.results[0].alternatives[0].transcript
+    # Load the Wav2Vec2 model and tokenizer
+    model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-large-960h-lv60-self")
+    tokenizer = Wav2Vec2Tokenizer.from_pretrained("facebook/wav2vec2-large-960h-lv60-self")
+    # Read the contents of the WAV file as a tensor
+    waveform, sample_rate = torchaudio.load(wav_file)
+    # Resample the waveform if necessary
+    if sample_rate != 16000:
+        resampler = torchaudio.transforms.Resample(sample_rate, 16000)
+        waveform = resampler(waveform)
+    # Convert the waveform to a 1D tensor of floats between -1 and 1
+    waveform = waveform[0].numpy() / 32768.0
+    # Encode the waveform using the Wav2Vec2 tokenizer
+    input_values = tokenizer(waveform, return_tensors="pt").input_values
+    # Transcribe the encoded waveform using the Wav2Vec2 model
+    with torch.no_grad():
+        logits = model(input_values).logits
+    predicted_ids = torch.argmax(logits, dim=-1)
+    transcription = tokenizer.batch_decode(predicted_ids)[0]
     # Display the transcribed text in the app
-    st.write(f"Transcribed text: {transcript}")
+    st.write(f"Transcribed text: {transcription}")
 
 # Create the Streamlit app
 def main():
@@ -50,7 +54,7 @@ def main():
     process_file(uploaded_file)
     # Add a file uploader for audio files
     uploaded_wav = st.file_uploader("Choose a WAV audio file", type=["wav"])
-    # Transcribe the audio file to text when it's uploaded
+    # Transcribe the audio file to text using the Wav2Vec2 model when it's uploaded
     if uploaded_wav is not None:
         transcribe_audio(uploaded_wav)
 
